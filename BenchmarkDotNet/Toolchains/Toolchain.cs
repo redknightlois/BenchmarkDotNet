@@ -28,7 +28,9 @@ namespace BenchmarkDotNet.Toolchains
 
         public override string ToString() => Name;
 
-        public static IToolchain GetToolchain(Runtime runtime)
+        public static IToolchain GetToolchain(IJob job) => job.Toolchain ?? GetToolchain(job.Runtime);
+
+        internal static IToolchain GetToolchain(Runtime runtime)
         {
             switch (runtime)
             {
@@ -36,9 +38,7 @@ namespace BenchmarkDotNet.Toolchains
                     return GetToolchain(RuntimeInformation.GetCurrent());
                 case Runtime.Clr:
                 case Runtime.Mono:
-#if CLASSIC
                     return Classic.ClassicToolchain.Instance;
-#endif
                 case Runtime.Dnx:
                     return Dnx.DnxToolchain.Instance;
                 case Runtime.Core:

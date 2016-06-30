@@ -1,16 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
-using BenchmarkDotNet.Analyzers;
+using BenchmarkDotNet.Analysers;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Diagnosers;
 using BenchmarkDotNet.Exporters;
-using BenchmarkDotNet.Helpers;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
+using BenchmarkDotNet.Order;
 using BenchmarkDotNet.Portability;
+using BenchmarkDotNet.Validators;
 
 namespace BenchmarkDotNet.Configs
 {
@@ -30,6 +32,7 @@ namespace BenchmarkDotNet.Configs
             yield return PropertyColumn.Platform;
             yield return PropertyColumn.Jit;
             yield return PropertyColumn.Framework;
+            yield return PropertyColumn.Toolchain;
             yield return PropertyColumn.Runtime;
             yield return PropertyColumn.LaunchCount;
             yield return PropertyColumn.WarmupCount;
@@ -61,10 +64,21 @@ namespace BenchmarkDotNet.Configs
             yield return EnvironmentAnalyser.Default;
         }
 
-        public IEnumerable<IJob> GetJobs() => EnumerableHelper.Empty<IJob>();
+        public IEnumerable<IValidator> GetValidators()
+        {
+            yield return BaselineValidator.FailOnError;
+            yield return JitOptimizationsValidator.DontFailOnError;
+        }
+
+        public IEnumerable<IJob> GetJobs() => Enumerable.Empty<IJob>();
+
+        public IOrderProvider GetOrderProvider() => null;
+
         public ConfigUnionRule UnionRule => ConfigUnionRule.Union;
 
-        public IEnumerable<IDiagnoser> GetDiagnosers() => EnumerableHelper.Empty<IDiagnoser>();
+        public bool KeepBenchmarkFiles => false;
+
+        public IEnumerable<IDiagnoser> GetDiagnosers() => Enumerable.Empty<IDiagnoser>();
 
         // Make the Diagnosers lazy-loaded, so they are only instantiated if neededs
         public static readonly Lazy<IDiagnoser[]> LazyLoadedDiagnosers =
@@ -73,7 +87,7 @@ namespace BenchmarkDotNet.Configs
         private static IDiagnoser[] LoadDiagnosers()
         {
 #if !CORE
-            var diagnosticAssembly = "BenchmarkDotNet.Diagnostics.dll";
+            var diagnosticAssembly = "BenchmarkDotNet.Diagnostics.Windows.dll";
             try
             {
                 var loadedAssembly = Assembly.LoadFrom(diagnosticAssembly);
@@ -90,10 +104,13 @@ namespace BenchmarkDotNet.Configs
                 {
                     return new[] 
                     {
-                        GetDiagnoser(loadedAssembly, "BenchmarkDotNet.Diagnostics.RuntimeDiagnoser"),
-                        GetDiagnoser(loadedAssembly, "BenchmarkDotNet.Diagnostics.SourceDiagnoser"),
-                        GetDiagnoser(loadedAssembly, "BenchmarkDotNet.Diagnostics.GCDiagnoser"),
-                        GetDiagnoser(loadedAssembly, "BenchmarkDotNet.Diagnostics.InliningDiagnoser"),
+                        // GCDiagnoser is marked as obsolete because it has been renamed to MemoryDiagnoser,
+                        // Eventually we'll removed it completely, for the time being let it load, but when
+                        // it turns it'll throw an error, telling the dev to use the MemoryDiagnoser instead
+                        GetDiagnoser(loadedAssembly, "BenchmarkDotNet.Diagnostics.Windows.GCDiagnoser"),
+
+                        GetDiagnoser(loadedAssembly, "BenchmarkDotNet.Diagnostics.Windows.MemoryDiagnoser"),
+                        GetDiagnoser(loadedAssembly, "BenchmarkDotNet.Diagnostics.Windows.InliningDiagnoser"),
                     };
                 }
             }

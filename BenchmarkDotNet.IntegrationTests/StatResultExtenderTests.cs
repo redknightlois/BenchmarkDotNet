@@ -32,10 +32,13 @@ namespace BenchmarkDotNet.IntegrationTests
                 StatisticColumn.Median,
                 StatisticColumn.Q3,
                 StatisticColumn.Max,
-                StatisticColumn.OperationsPerSecond
+                StatisticColumn.OperationsPerSecond,
+                StatisticColumn.P85,
+                StatisticColumn.P95,
+                StatisticColumn.P95
             };
             var config = DefaultConfig.Instance.With(logger).With(columns);
-            var summary = BenchmarkRunner.Run<Target>(config);
+            var summary = BenchmarkTestExecutor.CanExecute<Target>(config);
             output.WriteLine(logger.GetLog());
 
             var table = summary.Table;

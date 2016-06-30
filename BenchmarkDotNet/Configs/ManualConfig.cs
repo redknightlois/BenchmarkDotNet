@@ -1,10 +1,12 @@
 ﻿using System.Collections.Generic;
-using BenchmarkDotNet.Analyzers;
+using BenchmarkDotNet.Analysers;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Diagnosers;
 using BenchmarkDotNet.Exporters;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
+using BenchmarkDotNet.Order;
+using BenchmarkDotNet.Validators;
 
 namespace BenchmarkDotNet.Configs
 {
@@ -15,22 +17,32 @@ namespace BenchmarkDotNet.Configs
         private readonly List<ILogger> loggers = new List<ILogger>();
         private readonly List<IDiagnoser> diagnosers = new List<IDiagnoser>();
         private readonly List<IAnalyser> analysers = new List<IAnalyser>();
+        private readonly List<IValidator> validators = new List<IValidator>();
         private readonly List<IJob> jobs = new List<IJob>();
+        private IOrderProvider orderProvider = null;
 
         public IEnumerable<IColumn> GetColumns() => columns;
         public IEnumerable<IExporter> GetExporters() => exporters;
         public IEnumerable<ILogger> GetLoggers() => loggers;
         public IEnumerable<IDiagnoser> GetDiagnosers() => diagnosers;
         public IEnumerable<IAnalyser> GetAnalysers() => analysers;
+        public IEnumerable<IValidator> GetValidators() => validators;
         public IEnumerable<IJob> GetJobs() => jobs;
+
+        public IOrderProvider GetOrderProvider() => orderProvider;
+
         public ConfigUnionRule UnionRule { get; set; } = ConfigUnionRule.Union;
 
+        public bool KeepBenchmarkFiles { get; set; }
+
         public void Add(params IColumn[] newColumns) => columns.AddRange(newColumns);
-        public void Add(params IExporter[] newExprters) => exporters.AddRange(newExprters);
+        public void Add(params IExporter[] newExporters) => exporters.AddRange(newExporters);
         public void Add(params ILogger[] newLoggers) => loggers.AddRange(newLoggers);
         public void Add(params IDiagnoser[] newDiagnosers) => diagnosers.AddRange(newDiagnosers);
         public void Add(params IAnalyser[] newAnalysers) => analysers.AddRange(newAnalysers);
+        public void Add(params IValidator[] newValidators) => validators.AddRange(newValidators);
         public void Add(params IJob[] newJobs) => jobs.AddRange(newJobs);
+        public void Set(IOrderProvider provider) => orderProvider = provider ?? orderProvider;
 
         public void Add(IConfig config)
         {
@@ -40,6 +52,9 @@ namespace BenchmarkDotNet.Configs
             diagnosers.AddRange(config.GetDiagnosers());
             analysers.AddRange(config.GetAnalysers());
             jobs.AddRange(config.GetJobs());
+            validators.AddRange(config.GetValidators());
+            orderProvider = config.GetOrderProvider() ?? orderProvider;
+            KeepBenchmarkFiles |= config.KeepBenchmarkFiles;
         }
 
         public static ManualConfig CreateEmpty() => new ManualConfig();
@@ -72,8 +87,7 @@ namespace BenchmarkDotNet.Configs
 
         public static IConfig Parse(string[] args) => new ConfigParser().Parse(args);
 
-        public static bool ShouldDisplayOptions(string[] args) => new ConfigParser().ShouldDisplayOptions(args);
-
-        public static void PrintOptions(ILogger logger) => new ConfigParser().PrintOptions(logger);
+        public static void PrintOptions(ILogger logger, int prefixWidth, int outputWidth) 
+            => new ConfigParser().PrintOptions(logger, prefixWidth: prefixWidth, outputWidth: outputWidth);
     }
 }

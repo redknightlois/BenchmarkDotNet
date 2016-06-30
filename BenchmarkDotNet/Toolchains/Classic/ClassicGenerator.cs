@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Extensions;
 using BenchmarkDotNet.Helpers;
 using BenchmarkDotNet.Jobs;
@@ -25,9 +26,14 @@ namespace BenchmarkDotNet.Toolchains.Classic
                 "System.Xml"
             });
 
-        protected override string GetDirectoryPath(Benchmark benchmark)
+        protected override string GetBinariesDirectoryPath(Benchmark benchmark, string rootArtifactsFolderPath, IConfig config)
         {
-            return Path.Combine(Directory.GetCurrentDirectory(), benchmark.ShortInfo);
+            if (config.KeepBenchmarkFiles)
+            {
+                return Path.Combine(rootArtifactsFolderPath, "bin", benchmark.ShortInfo);
+            }
+
+            return Path.Combine(rootArtifactsFolderPath, "bin", ShortFolderName);
         }
 
         protected override void GenerateProjectFile(ILogger logger, string projectDir, Benchmark benchmark)
@@ -46,11 +52,10 @@ namespace BenchmarkDotNet.Toolchains.Classic
             File.WriteAllText(fileName, content);
         }
 
-        protected override void GenerateProjectBuildFile(string projectDir)
+        protected override void GenerateProjectBuildFile(string scriptFilePath, Framework framework)
         {
             var content = ResourceHelper.LoadTemplate("BuildBenchmark.txt");
-            string fileName = Path.Combine(projectDir, "BuildBenchmark.bat");
-            File.WriteAllText(fileName, content);
+            File.WriteAllText(scriptFilePath, content);
         }
 
         private string GetTargetFrameworkVersion(Benchmark benchmark)
@@ -96,12 +101,6 @@ namespace BenchmarkDotNet.Toolchains.Classic
 
         private string GetHintPath(Assembly loadedReferencedAssembly)
         {
-            if (loadedReferencedAssembly.GlobalAssemblyCache)
-            {
-                // there is no need to specify path if assembly was loaded from GAC
-                return string.Empty;
-            }
-
             // the assembly is loaded so we just give the absolute path
             return $"<HintPath>{loadedReferencedAssembly.Location}</HintPath>";
         }

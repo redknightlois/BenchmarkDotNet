@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Extensions;
+using BenchmarkDotNet.Order;
 
 namespace BenchmarkDotNet.Reports
 {
@@ -22,6 +23,17 @@ namespace BenchmarkDotNet.Reports
         {
             Summary = summary;
 
+            if (summary.HasCriticalValidationErrors)
+            {
+                Columns = new SummaryTableColumn[0];
+                ColumnCount = 0;
+                FullHeader = new string[0];
+                FullContent = new string[0][];
+                FullContentStartOfGroup = new bool[0];
+                FullContentWithHeader = new string[0][];
+                return;
+            }
+
             var configColumns = summary.Config.
                 GetColumns().
                 Where(c => c.IsAvailable(summary));
@@ -34,29 +46,22 @@ namespace BenchmarkDotNet.Reports
                 Where(d => d is IColumnProvider).
                 Cast<IColumnProvider>().
                 SelectMany(cp => cp.GetColumns);
-            var columns = configColumns.Concat(paramColumns).Concat(diagnoserColumns).ToArray();
+            var columns = configColumns.Concat(paramColumns).Concat(diagnoserColumns).ToArray().OrderBy(c => c.Category).ToArray();
 
             ColumnCount = columns.Length;
             FullHeader = columns.Select(c => c.ColumnName).ToArray();
 
-            var reports = summary.Reports.Values.
-                OrderBy(r => r.Benchmark.Parameters, ParameterComparer.Instance).
-                ThenBy(r => r.Benchmark.Target.Type.Name).
-                ThenBy(r => r.Benchmark.Target.MethodTitle).                
-                ToList();
-            FullContent = reports.Select(r => columns.Select(c => c.GetValue(summary, r.Benchmark)).ToArray()).ToArray();
-            FullContentStartOfGroup = new bool[reports.Count];
-            var counter = 0;
-            var currentParams = "";
-            foreach (var report in reports)
+            var orderProvider = summary.Config.GetOrderProvider() ?? DefaultOrderProvider.Instance;
+            FullContent = summary.Reports.Select(r => columns.Select(c => c.GetValue(summary, r.Benchmark)).ToArray()).ToArray();
+            var groupKeys = summary.Benchmarks.Select(b => orderProvider.GetGroupKey(b, summary)).ToArray();
+            FullContentStartOfGroup = new bool[summary.Reports.Length];
+
+            if (groupKeys.Distinct().Count() > 1 && FullContentStartOfGroup.Length > 0)
             {
-                if (currentParams != report.Benchmark.Parameters.FullInfo)
-                {
-                    FullContentStartOfGroup[counter] = true;
-                    currentParams = report.Benchmark.Parameters.FullInfo;
-                }
-                counter++;
-            }
+                FullContentStartOfGroup[0] = true;
+                for (int i = 1; i < summary.Reports.Length; i++)
+                    FullContentStartOfGroup[i] = groupKeys[i] != groupKeys[i - 1];
+            }            
 
             var full = new List<string[]> { FullHeader };
             full.AddRange(FullContent);

@@ -1,22 +1,15 @@
 ﻿using System;
-using System.Linq;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Running;
 using Xunit;
 
 namespace BenchmarkDotNet.IntegrationTests
 {
-    [Config(typeof(SingleRunFastConfig))]
     public class ValuesReturnedByBenchmarkTest
     {
         [Fact]
         public void AnyValueCanBeReturned()
         {
-            var summary = BenchmarkRunner.Run<ValuesReturnedByBenchmarkTest>();
-
-            Assert.True(summary.Reports.Any());
-            Assert.True(summary.Reports.All(report => report.Value.ExecuteResults.All(executeResult => executeResult.FoundExecutable)));
-            Assert.True(summary.Reports.All(report => report.Value.AllMeasurements.Any()));
+            BenchmarkTestExecutor.CanExecute<ValuesReturnedByBenchmarkTest>();
         }
 
 #if !CORE
@@ -27,9 +20,9 @@ namespace BenchmarkDotNet.IntegrationTests
         }
 
         [Benchmark]
-        public Diagnostics.InliningDiagnoser TypeFromCustomDependency()
+        public Diagnostics.Windows.InliningDiagnoser TypeFromCustomDependency()
         {
-            return new Diagnostics.InliningDiagnoser();
+            return new Diagnostics.Windows.InliningDiagnoser();
         }
 #endif
 

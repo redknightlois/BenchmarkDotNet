@@ -9,19 +9,25 @@ using BenchmarkDotNet.Reports;
 
 namespace BenchmarkDotNet.Exporters
 {
-    public class RPlotExporter : IExporter
+    public class RPlotExporter : IExporter, IExporterDependancies
     {
         public static readonly IExporter Default = new RPlotExporter();
 
         private static object buildScriptLock = new object();
+
+        public IEnumerable<IExporter> Dependancies
+        {
+            // R Plots depends on having the full measurments available
+            get { yield return CsvMeasurementsExporter.Default; }
+        }
 
         public IEnumerable<string> ExportToFiles(Summary summary)
         {
             const string scriptFileName = "BuildPlots.R";
             yield return scriptFileName;
 
-            var fileNamePrefix = Path.Combine(summary.CurrentDirectory, summary.Title);
-            var scriptFullPath = Path.Combine(summary.CurrentDirectory, scriptFileName);
+            var fileNamePrefix = Path.Combine(summary.ResultsDirectoryPath, summary.Title);
+            var scriptFullPath = Path.Combine(summary.ResultsDirectoryPath, scriptFileName);
             var script = ResourceHelper.LoadTemplate(scriptFileName).Replace("$BenchmarkDotNetVersion$", BenchmarkDotNetInfo.FullTitle);
             lock (buildScriptLock)
                 File.WriteAllText(scriptFullPath, script);
@@ -35,7 +41,7 @@ namespace BenchmarkDotNet.Exporters
                     RedirectStandardOutput = false,
                     CreateNoWindow = true,
                     FileName = Path.Combine(rHome, "Rscript.exe"),
-                    WorkingDirectory = summary.CurrentDirectory,
+                    WorkingDirectory = summary.ResultsDirectoryPath,
                     Arguments = $"\"{scriptFullPath}\" \"{fileNamePrefix}-measurements.csv\""
                 };
                 using (var process = Process.Start(start))

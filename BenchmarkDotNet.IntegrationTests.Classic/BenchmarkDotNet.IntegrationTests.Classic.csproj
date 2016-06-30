@@ -37,10 +37,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="BenchmarkDotNet" Condition="'$(Configuration)'=='Release'">
-      <HintPath>..\artifacts\bin\BenchmarkDotNet\Release\net45\BenchmarkDotNet.dll</HintPath>
+      <HintPath>..\BenchmarkDotNet\bin\Release\net40\BenchmarkDotNet.dll</HintPath>
     </Reference>
     <Reference Include="BenchmarkDotNet" Condition="'$(Configuration)'=='Debug'">
-      <HintPath>..\artifacts\bin\BenchmarkDotNet\Debug\net45\BenchmarkDotNet.dll</HintPath>
+      <HintPath>..\BenchmarkDotNet\bin\Debug\net40\BenchmarkDotNet.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -68,8 +68,11 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AssemblyConfigAttribute.cs" />
+    <Compile Include="AssemblyConfigTests.cs" />
+    <Compile Include="JitOptimizationsTests.cs" />
     <Compile Include="Program.cs" />
-    <Compile Include="References.cs" />
+    <Compile Include="ReferencesTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
@@ -80,6 +83,22 @@
     <ProjectReference Include="..\BenchmarkDotNet.IntegrationTests.DifferentRuntime\BenchmarkDotNet.IntegrationTests.DifferentRuntime.csproj">
       <Project>{19411154-3ac9-4689-bc2e-9646121ed63d}</Project>
       <Name>BenchmarkDotNet.IntegrationTests.DifferentRuntime</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\BenchmarkDotNet.IntegrationTests.DisabledOptimizations\BenchmarkDotNet.IntegrationTests.DisabledOptimizations.csproj">
+      <Project>{ac2188e5-a140-43e2-8a76-4bdabfe30aba}</Project>
+      <Name>BenchmarkDotNet.IntegrationTests.DisabledOptimizations</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\BenchmarkDotNet.IntegrationTests.EnabledOptimizations\BenchmarkDotNet.IntegrationTests.EnabledOptimizations.csproj">
+      <Project>{873581ff-db9d-42e5-8f11-32a4b7bb28ec}</Project>
+      <Name>BenchmarkDotNet.IntegrationTests.EnabledOptimizations</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\BenchmarkDotNet.IntegrationTests.FSharp\BenchmarkDotNet.IntegrationTests.FSharp.fsproj">
+      <Project>{367fafe1-a1c8-4aa1-9334-f4762e128dbb}</Project>
+      <Name>BenchmarkDotNet.IntegrationTests.FSharp</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\BenchmarkDotNet.IntegrationTests.VisualBasic\BenchmarkDotNet.IntegrationTests.VisualBasic.vbproj">
+      <Project>{d8803eca-4abf-45b8-bd1d-7c637416c448}</Project>
+      <Name>BenchmarkDotNet.IntegrationTests.VisualBasic</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

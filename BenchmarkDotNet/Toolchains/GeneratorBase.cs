@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Extensions;
 using BenchmarkDotNet.Helpers;
 using BenchmarkDotNet.Jobs;
@@ -17,27 +18,31 @@ namespace BenchmarkDotNet.Toolchains
     {
         public const string MainClassName = "Program";
 
-        public GenerateResult GenerateProject(Benchmark benchmark, ILogger logger)
+        public const string ShortFolderName = "BDN.Auto";
+
+        internal static string BuildBenchmarkScriptFileName => "BuildBenchmark" + RuntimeInformation.ScriptFileExtension;
+
+        public GenerateResult GenerateProject(Benchmark benchmark, ILogger logger, string rootArtifactsFolderPath, IConfig config)
         {
-            var result = CreateProjectDirectory(benchmark);
+            var result = CreateProjectDirectory(benchmark, rootArtifactsFolderPath, config);
 
             GenerateProgramFile(result.DirectoryPath, benchmark);
             GenerateProjectFile(logger, result.DirectoryPath, benchmark);
-            GenerateProjectBuildFile(result.DirectoryPath);
+            GenerateProjectBuildFile(Path.Combine(result.DirectoryPath, BuildBenchmarkScriptFileName), benchmark.Job.Framework);
             GenerateAppConfigFile(result.DirectoryPath, benchmark.Job);
 
             return result;
         }
 
-        protected abstract string GetDirectoryPath(Benchmark benchmark);
+        protected abstract string GetBinariesDirectoryPath(Benchmark benchmark, string rootArtifactsFolderPath, IConfig config);
 
         protected abstract void GenerateProjectFile(ILogger logger, string projectDir, Benchmark benchmark);
 
-        protected abstract void GenerateProjectBuildFile(string projectDir);
+        protected abstract void GenerateProjectBuildFile(string scriptFilePath, Framework framework);
 
-        private GenerateResult CreateProjectDirectory(Benchmark benchmark)
+        private GenerateResult CreateProjectDirectory(Benchmark benchmark, string rootArtifactsFolderPath, IConfig config)
         {
-            var directoryPath = GetDirectoryPath(benchmark);
+            var directoryPath = GetBinariesDirectoryPath(benchmark, rootArtifactsFolderPath, config);
             bool exist = Directory.Exists(directoryPath);
             Exception deleteException = null;
             for (int attempt = 0; attempt < 3 && exist; attempt++)
@@ -86,7 +91,7 @@ namespace BenchmarkDotNet.Toolchains
                 ? ""
                 : $"using {target.Method.ReturnType.Namespace};";
 
-            var targetTypeName = target.Type.FullName.Replace('+', '.');
+            var targetTypeName = target.Type.GetCorrectTypeName();
             var targetMethodName = target.Method.Name;
 
             var targetMethodReturnType = isVoid
@@ -141,14 +146,14 @@ namespace BenchmarkDotNet.Toolchains
                 Replace("$TargetBenchmarkTaskArguments$", targetBenchmarkTaskArguments).
                 Replace("$ParamsContent$", paramsContent);
 
-            string fileName = Path.Combine(projectDir, MainClassName + ".cs");
+            string fileName = Path.Combine(projectDir, MainClassName + ".notcs");
             File.WriteAllText(fileName, content);
         }
 
         private void GenerateAppConfigFile(string projectDir, IJob job)
         {
             var useLagacyJit = job.Jit == Jit.RyuJit
-                || (job.Jit == Jit.Host && EnvironmentHelper.GetCurrentInfo().HasRyuJit)
+                || (job.Jit == Jit.Host && EnvironmentInfo.GetCurrent().HasRyuJit)
                 ? "0"
                 : "1";
 
@@ -167,7 +172,9 @@ namespace BenchmarkDotNet.Toolchains
             if (value is bool)
                 return value.ToString().ToLower();
             if (value is string)
-                return "\"" + value + "\"";
+                return $"\"{value}\"";
+            if(value is char)
+                return $"'{value}'";
             if (value is float)
                 return ((float)value).ToString("G", CultureInfo.InvariantCulture) + "f";
             if (value is double)
@@ -175,7 +182,7 @@ namespace BenchmarkDotNet.Toolchains
             if (value is decimal)
                 return ((decimal)value).ToString("G", CultureInfo.InvariantCulture) + "m";
             if (value.GetType().IsEnum())
-                return value.GetType().FullName + "." + value;
+                return value.GetType().GetCorrectTypeName() + "." + value;
             return value.ToString();
         }
     }

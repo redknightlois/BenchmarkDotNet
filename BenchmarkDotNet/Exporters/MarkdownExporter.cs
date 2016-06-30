@@ -54,7 +54,7 @@ namespace BenchmarkDotNet.Exporters
                 logger.WriteLine($"```{codeBlocksSyntax}");
             logger = GetRightLogger(logger);
             logger.WriteLine();
-            foreach (var infoLine in EnvironmentHelper.GetCurrentInfo().ToFormattedString("Host"))
+            foreach (var infoLine in EnvironmentInfo.GetCurrent().ToFormattedString("Host", true))
             {
                 logger.WriteLineInfo(infoLine);
             }
@@ -63,7 +63,7 @@ namespace BenchmarkDotNet.Exporters
             PrintTable(summary.Table, logger);
 
             // TODO: move this logic to an analyser
-            var benchmarksWithTroubles = summary.Reports.Values.Where(r => !r.GetResultRuns().Any()).Select(r => r.Benchmark).ToList();
+            var benchmarksWithTroubles = summary.Reports.Where(r => !r.GetResultRuns().Any()).Select(r => r.Benchmark).ToList();
             if (benchmarksWithTroubles.Count > 0)
             {
                 logger.WriteLine();

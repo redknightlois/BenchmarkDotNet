@@ -25,7 +25,7 @@ namespace BenchmarkDotNet.Extensions
 
         public static string GetCorrectTypeName(this Type type)
         {
-            if (type == typeof (void))
+            if (type == typeof(void))
                 return "void";
             var prefix = "";
             if (!string.IsNullOrEmpty(type.Namespace))
@@ -53,11 +53,7 @@ namespace BenchmarkDotNet.Extensions
             var targetFrameworkAttribute = assembly.GetCustomAttributes<TargetFrameworkAttribute>(false).FirstOrDefault();
             if (targetFrameworkAttribute == null)
             {
-#if NET45
-                return "v4.5";
-#else
                 return "v4.0";
-#endif
             }
 
             var frameworkName = new FrameworkName(targetFrameworkAttribute.FrameworkName);

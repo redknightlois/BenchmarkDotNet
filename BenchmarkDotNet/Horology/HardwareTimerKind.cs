@@ -9,14 +9,18 @@
 
         /// <summary>
         /// Time Stamp Counter
-        /// <seealso cref="https://en.wikipedia.org/wiki/Time_Stamp_Counter"/>
+        /// <seealso href="https://en.wikipedia.org/wiki/Time_Stamp_Counter"/>
         /// </summary>
         Tsc,
 
+        Acpi,
+
         /// <summary>
         /// High Precision Event Timer
-        /// <seealso cref="https://en.wikipedia.org/wiki/High_Precision_Event_Timer"/>
+        /// <seealso href="https://en.wikipedia.org/wiki/High_Precision_Event_Timer"/>
         /// </summary>
-        Hpet
+        Hpet,
+
+        Unknown
     }
 }

@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
+using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Loggers;
 using BenchmarkDotNet.Portability;
 using BenchmarkDotNet.Running;
@@ -10,17 +10,19 @@ namespace BenchmarkDotNet.Toolchains.DotNetCli
 {
     public class DotNetCliBuilder : IBuilder
     {
-        private const string Configuration = "RELEASE";
+        internal const string RestoreCommand = "restore --fallbacksource https://dotnet.myget.org/F/dotnet-core/api/v3/index.json";
+
+        private const string Configuration = "Release";
 
         private const string OutputDirectory = "binaries";
 
-        private static readonly int DefaultTimeout = (int)TimeSpan.FromMinutes(2).TotalMilliseconds;
+        private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(2);
 
-        private string Framework { get; }
+        private Func<Framework, string> TargetFrameworkMonikerProvider { get; }
 
-        public DotNetCliBuilder(string framework)
+        public DotNetCliBuilder(Func<Framework, string> targetFrameworkMonikerProvider)
         {
-            Framework = framework;
+            TargetFrameworkMonikerProvider = targetFrameworkMonikerProvider;
         }
 
         /// <summary>
@@ -29,15 +31,20 @@ namespace BenchmarkDotNet.Toolchains.DotNetCli
         /// </summary>
         public BuildResult Build(GenerateResult generateResult, ILogger logger, Benchmark benchmark)
         {
-            if (!ExecuteCommand("restore --fallbacksource https://dotnet.myget.org/F/dotnet-core/api/v3/index.json", generateResult.DirectoryPath, logger))
+            if (!DotNetCliCommandExecutor.ExecuteCommand(
+                RestoreCommand, 
+                generateResult.DirectoryPath, 
+                logger, 
+                DefaultTimeout))
             {
                 return new BuildResult(generateResult, false, new Exception("dotnet restore has failed"), null);
             }
 
-            if (!ExecuteCommand(
-                $"build --framework {Framework} --configuration {Configuration} --output {OutputDirectory}", 
+            if (!DotNetCliCommandExecutor.ExecuteCommand(
+                GetBuildCommand(TargetFrameworkMonikerProvider(benchmark.Job.Framework)), 
                 generateResult.DirectoryPath, 
-                logger))
+                logger,
+                DefaultTimeout))
             {
                 // dotnet cli could have succesfully builded the program, but returned 1 as exit code because it had some warnings
                 // so we need to check whether the exe exists or not, if it does then it is OK
@@ -53,47 +60,20 @@ namespace BenchmarkDotNet.Toolchains.DotNetCli
             return new BuildResult(generateResult, true, null, BuildExecutablePath(generateResult, benchmark));
         }
 
-        private static bool ExecuteCommand(string commandWithArguments, string workingDirectory, ILogger logger)
+        internal static string GetBuildCommand(string frameworkMoniker)
         {
-            using (var process = new Process { StartInfo = BuildStartInfo(workingDirectory, commandWithArguments)})
-            {
-                using (new AsynchronousProcessOutputLogger(logger, process))
-                {
-                    process.Start();
-
-                    // don't forget to call, otherwise logger will not get any events
-                    process.BeginErrorReadLine();
-#if DEBUG
-                    process.BeginOutputReadLine();
-#endif
-
-                    process.WaitForExit(DefaultTimeout);
-
-                    return process.ExitCode <= 0;
-                }
-            }
-        }
-
-        private static ProcessStartInfo BuildStartInfo(string workingDirectory, string arguments)
-        {
-            return new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                WorkingDirectory = workingDirectory,
-                Arguments = arguments,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-#if DEBUG
-                RedirectStandardOutput = true,
-#endif
-                RedirectStandardError = true
-            };
+            return $"build --framework {frameworkMoniker} --configuration {Configuration} --output {OutputDirectory}";
         }
 
         /// <summary>
-        /// we use custom output path in order to avoid any future problems related to dotnet cli paths changing
+        /// we use custom output path in order to avoid any future problems related to dotnet cli paths changes
         /// </summary>
         private string BuildExecutablePath(GenerateResult generateResult, Benchmark benchmark)
-            => Path.Combine(generateResult.DirectoryPath, OutputDirectory, $"{benchmark.ShortInfo}{RuntimeInformation.ExecutableExtension}");
+        {
+            return Path.Combine(
+                generateResult.DirectoryPath,
+                OutputDirectory,
+                $"{new DirectoryInfo(generateResult.DirectoryPath).Name}{RuntimeInformation.ExecutableExtension}");
+        }
     }
 }

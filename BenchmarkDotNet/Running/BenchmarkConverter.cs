@@ -6,55 +6,75 @@ using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Extensions;
 using BenchmarkDotNet.Jobs;
+using BenchmarkDotNet.Order;
 using BenchmarkDotNet.Parameters;
 using BenchmarkDotNet.Portability;
 
 namespace BenchmarkDotNet.Running
 {
-    internal static partial class BenchmarkConverter
+    public static partial class BenchmarkConverter
     {
-        public static IList<Benchmark> TypeToBenchmarks(Type type, IConfig config = null)
+        public static Benchmark[] TypeToBenchmarks(Type type, IConfig config = null)
         {
             config = GetFullConfig(type, config);
 
             var allMethods = type.GetMethods();
+            return MethodsToBenchmarks(type, allMethods, config);
+        }
 
-            var setupMethod = GetSetupMethod(allMethods);
-            var targetMethods = allMethods.Where(method => method.HasAttribute<BenchmarkAttribute>()).ToArray();
+        public static Benchmark[] MethodsToBenchmarks(Type containingType, MethodInfo[] methods, IConfig config = null)
+        {
+            var setupMethod = GetSetupMethod(methods);
+            var targetMethods = methods.Where(method => method.HasAttribute<BenchmarkAttribute>()).ToArray();
 
-            var parameterDefinitions = GetParameterDefinitions(type);
+            var parameterDefinitions = GetParameterDefinitions(containingType);
             var parameterInstancesList = parameterDefinitions.Expand();
 
             var rawJobs = config?.GetJobs().ToArray() ?? new IJob[0];
             if (rawJobs.IsEmpty())
                 rawJobs = new[] { Job.Default };
-            var jobs = rawJobs.ToArray();
+            var jobs = rawJobs.Distinct().ToArray();
 
-            var targets = GetTargets(targetMethods, type, setupMethod).ToArray();
+            var targets = GetTargets(targetMethods, containingType, setupMethod).ToArray();
 
-            return (
+            var benchmarks = (
                 from target in targets
                 from job in jobs
                 from parameterInstance in parameterInstancesList
-                select new Benchmark(target, job, parameterInstance)).ToSortedList();
+                select new Benchmark(target, job, parameterInstance)).ToArray();
+
+            var orderProvider = config?.GetOrderProvider() ?? DefaultOrderProvider.Instance;
+            return orderProvider.GetExecutionOrder(benchmarks).ToArray();
         }
 
         public static IConfig GetFullConfig(Type type, IConfig config)
         {
             config = config ?? DefaultConfig.Instance;
-            var configAttribute = type?.GetCustomAttributes<IConfigSource>(true).FirstOrDefault();
-            if (configAttribute != null)
-                config = ManualConfig.Union(config, configAttribute.Config);
+            if (type != null)
+            {
+                var typeAttributes = type.GetCustomAttributes<IConfigSource>(true);
+                var assemblyAttributes = type.Assembly().GetCustomAttributes<IConfigSource>(false);
+                var allAttributes = typeAttributes.Concat(assemblyAttributes);
+                foreach (var configSource in allAttributes)
+                    config = ManualConfig.Union(config, configSource.Config);
+            }
             return config;
         }
 
-        private static IEnumerable<Target> GetTargets(IEnumerable<MethodInfo> targetMethods, Type type, MethodInfo setupMethod) => targetMethods.
+        private static IEnumerable<Target> GetTargets(MethodInfo[] targetMethods, Type type, MethodInfo setupMethod) => targetMethods.
             Where(m => m.HasAttribute<BenchmarkAttribute>()).
-            Select(methodInfo => CreateTarget(type, setupMethod, methodInfo, methodInfo.ResolveAttribute<BenchmarkAttribute>()));
+            Select(methodInfo => CreateTarget(type, setupMethod, methodInfo, methodInfo.ResolveAttribute<BenchmarkAttribute>(), targetMethods));
 
-        private static Target CreateTarget(Type type, MethodInfo setupMethod, MethodInfo methodInfo, BenchmarkAttribute attr)
+        private static Target CreateTarget(Type type, MethodInfo setupMethod, MethodInfo methodInfo, BenchmarkAttribute attr, MethodInfo[] targetMethods)
         {
-            var target = new Target(type, methodInfo, setupMethod, attr.Description, baseline: attr.Baseline, operationsPerInvoke: attr.OperationsPerInvoke);
+            var target = new Target(
+                type, 
+                methodInfo, 
+                setupMethod, 
+                attr.Description, 
+                baseline: attr.Baseline, 
+                operationsPerInvoke: attr.OperationsPerInvoke, 
+                methodIndex: Array.IndexOf(targetMethods, methodInfo));
             AssertMethodHasCorrectSignature("Benchmark", methodInfo);
             AssertMethodIsAccessible("Benchmark", methodInfo);
             AssertMethodIsNotGeneric("Benchmark", methodInfo);

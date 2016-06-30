@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BenchmarkDotNet.Toolchains;
+using System;
 
 namespace BenchmarkDotNet.Jobs
 {
@@ -20,6 +21,7 @@ namespace BenchmarkDotNet.Jobs
         public Platform Platform { get; set; } = Platform.Host;
         public Jit Jit { get; set; } = Jit.Host;
         public Framework Framework { get; set; } = Framework.Host;
+        public IToolchain Toolchain { get; set; }
         public Runtime Runtime { get; set; } = Runtime.Host;
 
         public Count LaunchCount { get; set; } = Count.Auto;
@@ -34,7 +36,7 @@ namespace BenchmarkDotNet.Jobs
 
         public Job()
         {
-            allProperties = new Lazy<Property[]>(this.GetAllProperties, isThreadSafe: false);
+            allProperties = new Lazy<Property[]>(this.GetAllProperties, isThreadSafe: true);
         }
 
         public bool Equals(IJob other)

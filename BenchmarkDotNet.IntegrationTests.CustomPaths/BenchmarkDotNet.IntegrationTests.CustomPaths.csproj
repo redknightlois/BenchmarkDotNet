@@ -32,13 +32,10 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="BenchmarkDotNet" Condition="'$(Configuration)'=='Release'">
-      <HintPath>..\artifacts\bin\BenchmarkDotNet\Release\net45\BenchmarkDotNet.dll</HintPath>
+      <HintPath>..\BenchmarkDotNet\bin\Release\net40\BenchmarkDotNet.dll</HintPath>
     </Reference>
     <Reference Include="BenchmarkDotNet" Condition="'$(Configuration)'=='Debug'">
-      <HintPath>..\artifacts\bin\BenchmarkDotNet\Debug\net45\BenchmarkDotNet.dll</HintPath>
-    </Reference>
-    <Reference Include="Microsoft.Diagnostics.Runtime">
-      <HintPath>..\CLRMD\Microsoft.Diagnostics.Runtime.dll</HintPath>
+      <HintPath>..\BenchmarkDotNet\bin\Debug\net40\BenchmarkDotNet.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -48,6 +45,10 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
+    <Reference Include="VerySimple, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>customPath\VerySimple.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BenchmarksThatReturnTypeFromCustomPathDll.cs" />
